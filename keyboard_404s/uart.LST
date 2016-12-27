@@ -1,0 +1,155 @@
+C51 COMPILER V9.53.0.0   UART                                                              10/13/2016 15:00:47 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE UART
+OBJECT MODULE PLACED IN uart.OBJ
+COMPILER INVOKED BY: d:\Keil_v5\C51\BIN\C51.EXE uart.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          //#include "os_event.h"
+   2          #include "uart.h"
+   3          
+   4          BYTE xdata os_uart_buffer[UART_BUFFER_SIZE];
+   5          BYTE xdata os_uart_buffer_len = 0;
+   6          BYTE xdata os_uart_send_len = 0;
+   7          BYTE xdata rec_buf;
+   8          sbit LED_states = P3^3;
+   9          extern BOOL connnet_flag;
+  10          void os_uart_setup() //9600bps@22.1184MHz
+  11          {
+  12   1        SCON = 0x50;    //8位数据,可变波特率
+  13   1      
+  14   1      ///定时器1作为波特率发生器
+  15   1        AUXR |= 0x40;   //定时器时钟为Fosc,即1T
+  16   1        AUXR &= 0xFE;   //串口1选择定时器1为波特率发生器
+  17   1        TMOD &= 0x0F;   //16位自动重装
+  18   1        //定时器1作为波特率发生器
+  19   1        //9600
+  20   1        //TL1=0xC0; 
+  21   1        //TH1=0xFD;
+  22   1      //  //19200
+  23   1      //  TL1 = 0xE0;
+  24   1      //  TH1 = 0xFE;
+  25   1          //57600
+  26   1      //  TL1 = 0xA0;
+  27   1      //  TH1 = 0xFF;
+  28   1      //115200
+  29   1        TL1 = 0xD0;
+  30   1        TH1 = 0xFF; 
+  31   1        //定时器1作为波特率发生器
+  32   1        ET1=0;
+  33   1        TR1=1;
+  34   1      //定时器2
+  35   1      //  AUXR |= 0x01;   //??1?????2???????
+  36   1      //  AUXR |= 0x04;   //???2???Fosc,?1T
+  37   1      //  T2L = 0xC0;   //??????
+  38   1      //  T2H = 0xFD;   //??????
+  39   1      //  AUXR |= 0x10;   //?????2
+  40   1        ES      =   1;    //允许串口中断
+  41   1        EA      =   1;    //开总中断
+  42   1        LED_states =0;
+  43   1      }
+  44          
+  45          void os_uart_push( BYTE c ) // 存储发送数据
+  46          {
+  47   1        os_uart_buffer[os_uart_buffer_len] = c;
+  48   1        os_uart_buffer_len += 1;
+  49   1      }
+  50          
+  51          void os_uart_flush()   //发送数据入口函数
+  52          {
+  53   1        if( os_uart_buffer_len )
+  54   1        {
+  55   2          os_uart_buffer_len--;
+C51 COMPILER V9.53.0.0   UART                                                              10/13/2016 15:00:47 PAGE 2   
+
+  56   2          os_uart_send_len = 0;
+  57   2          SBUF = os_uart_buffer[os_uart_send_len];
+  58   2        }
+  59   1      }
+  60          
+  61          void uart() interrupt 4 using 2{
+  62   1        if(RI) // receive  
+  63   1        {
+  64   2          rec_buf = SBUF;
+  65   2          process_serial_data(rec_buf);
+  66   2          RI = 0;
+  67   2        }
+  68   1        if(TI) //Send
+  69   1        {
+  70   2          if( os_uart_buffer_len ) //发送数据
+  71   2          {
+  72   3            os_uart_buffer_len--;
+  73   3            os_uart_send_len++;
+  74   3            SBUF = os_uart_buffer[os_uart_send_len];
+  75   3          }
+  76   2          TI = 0;
+  77   2        }
+  78   1      }
+  79          BYTE reg_serial_states=0;
+  80          void process_serial_data(BYTE S_data)
+  81          {
+  82   1        switch(reg_serial_states)
+  83   1        {
+  84   2          case 0:
+  85   2            switch(S_data)
+  86   2            {
+  87   3              case 0x5A:
+  88   3                reg_serial_states=1;
+  89   3                break;
+  90   3              default:
+  91   3                reg_serial_states=0;
+  92   3                break;
+  93   3            }
+  94   2            break;
+  95   2          case 1:
+  96   2            switch(S_data)
+  97   2            {
+  98   3              //重置连接。
+  99   3              case 0x02:
+ 100   3                LED_states=0;
+ 101   3                connnet_flag=0;
+ 102   3                reg_serial_states=0;
+ 103   3                break;
+ 104   3              case 0x03:
+ 105   3                LED_states =1; //接收到下位机的信号，点亮LED
+ 106   3                connnet_flag =1; //连接成功
+ 107   3                reg_serial_states=0;
+ 108   3                break;
+ 109   3              case 0x04:
+ 110   3                LED_states =0; //接收到下位机的信号，关闭LED
+ 111   3                reg_serial_states=0;
+ 112   3                break;
+ 113   3              case 0x05:
+ 114   3                LED_states =1; //接收到下位机的信号，点亮LED
+ 115   3                reg_serial_states=0;
+ 116   3                break;
+ 117   3              default:
+C51 COMPILER V9.53.0.0   UART                                                              10/13/2016 15:00:47 PAGE 3   
+
+ 118   3                reg_serial_states=0;
+ 119   3                break;
+ 120   3            }
+ 121   2            break;
+ 122   2          default:
+ 123   2            reg_serial_states=0;
+ 124   2            break;
+ 125   2          
+ 126   2        }
+ 127   1      }
+ 128          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    204    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     11    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      1    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

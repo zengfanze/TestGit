@@ -1,0 +1,405 @@
+C51 COMPILER V9.53.0.0   MAIN                                                              10/13/2016 15:00:47 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: d:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          #include "config.h"
+   2          #include "uart.h"
+   3          //#include "os_event.h"
+   4          
+   5          //sbit key1 = P2^0;
+   6          //sbit key2 = P2^1;
+   7          //sbit key3 = P2^2;
+   8          //sbit key4 = P2^3;
+   9          //sbit key5 = P2^4;
+  10          //sbit key6 = P2^5;
+  11          //sbit key7 = P2^6;
+  12          //sbit key8 = P2^7;
+  13          #define DEBUG 0
+  14          
+  15          #define hander_keys P2
+  16          #define SendModel 0
+  17          
+  18          BOOL connnet_flag;
+  19          BOOL speed_flag;
+  20          WORD states_keys;
+  21          void Delay10ms();
+  22          void scan_keys();
+  23          void scan_keyboard();
+  24          void send_D_data(WORD D_data);
+  25          void send_data(BYTE param);
+  26          void send_8byte_data(BYTE param1,BYTE param2,BYTE param3,BYTE param4);
+  27          
+  28          void main(void)
+  29          {
+  30   1        EA=1;
+  31   1        P2M0 = 0x00;
+  32   1        P2M1 = 0x00;
+  33   1        connnet_flag =0;
+  34   1        speed_flag =1;
+  35   1        os_uart_setup();
+  36   1        os_uart_push(0x11);
+  37   1        os_uart_push(0x22);
+  38   1        os_uart_flush();
+  39   1        
+  40   1        //sendData(0x01);
+  41   1        
+  42   1        while(1){
+  43   2        //scan_keys();
+  44   2      //  if(!connnet_flag)
+  45   2      //  {
+  46   2      //  //请求下位机应答
+  47   2      //  os_uart_push(0x5A);
+  48   2      //  os_uart_push(0x03);
+  49   2      //  os_uart_push(0xFF);   
+  50   2      //  os_uart_flush();
+  51   2      //  Delay10ms();
+  52   2      //  Delay10ms();  
+  53   2      //  }   
+  54   2      //  else{
+  55   2        //states_keys = 0xFFFF;
+C51 COMPILER V9.53.0.0   MAIN                                                              10/13/2016 15:00:47 PAGE 2   
+
+  56   2        //scan_keyboard();
+  57   2        //按键状态扫描
+  58   2          if(states_keys != hander_keys)
+  59   2          {
+  60   3            Delay10ms();
+  61   3            if(states_keys != hander_keys)
+  62   3            {
+  63   4            //按键生效，就发送指令。
+  64   4            //os_uart_push(hander_keys);
+  65   4            //os_uart_flush();
+  66   4            states_keys = hander_keys;
+  67   4            switch(states_keys)
+  68   4            {
+  69   5              //停止状态
+  70   5              case 0xFF:
+  71   5                #if SendModel
+                          send_D_data(0xFFFF);
+                        #else
+  74   5                  send_data(0x00);
+  75   5                #endif
+  76   5                speed_flag=1;
+  77   5                break;
+  78   5              //前进
+  79   5              case 0xFE:
+  80   5                if(speed_flag){
+  81   6                  #if SendModel
+                            send_D_data(0xEFFF);
+                          #else
+  84   6                    send_data(0x01);
+  85   6                  #endif
+  86   6                }
+  87   5                speed_flag=1;
+  88   5                break;
+  89   5              //后退
+  90   5              case 0xFD:
+  91   5                if(speed_flag){
+  92   6                  #if SendModel
+                            send_D_data(0xDFFF);
+                          #else
+  95   6                    send_data(0x02);
+  96   6                  #endif
+  97   6                
+  98   6                }
+  99   5                speed_flag =1;
+ 100   5                break;
+ 101   5              //左转
+ 102   5              case 0xFB:
+ 103   5                if(speed_flag){
+ 104   6                  #if SendModel 
+                            send_D_data(0xBFFF);
+                          #else
+ 107   6                    send_data(0x03);
+ 108   6                  #endif
+ 109   6                
+ 110   6                }
+ 111   5                speed_flag=1;
+ 112   5                break;
+ 113   5              //右转
+ 114   5              case 0xF7:
+ 115   5                if(speed_flag){
+ 116   6                  #if SendModel 
+                            send_D_data(0x7FFF);
+C51 COMPILER V9.53.0.0   MAIN                                                              10/13/2016 15:00:47 PAGE 3   
+
+                          #else
+ 119   6                    send_data(0x04);
+ 120   6                  #endif
+ 121   6                }
+ 122   5                speed_flag=1;
+ 123   5                break;
+ 124   5              //按键,增加速度
+ 125   5              case 0xEF:
+ 126   5              case 0xEE:
+ 127   5              case 0xED:
+ 128   5              case 0xEB:
+ 129   5              case 0xE7:
+ 130   5                #if SendModel
+                          send_D_data(0xFFEF);
+                        #else
+ 133   5                  send_data(0x05);
+ 134   5                #endif
+ 135   5                speed_flag =0;
+ 136   5                break;
+ 137   5              //减少速度
+ 138   5              case 0xDF:
+ 139   5              case 0xDE:
+ 140   5              case 0xDD:
+ 141   5              case 0xDB:
+ 142   5              case 0xD7:
+ 143   5                #if SendModel
+                          send_D_data(0xFFDF);
+                        #else
+ 146   5                  send_data(0x06);
+ 147   5                #endif
+ 148   5                
+ 149   5                speed_flag=0;
+ 150   5                break;
+ 151   5              //打开外部抱闸
+ 152   5              case 0xBF:
+ 153   5                #if SendModel
+                          send_D_data(0xFFBF);
+                        #else
+ 156   5                  send_data(0x07);
+ 157   5                #endif
+ 158   5                speed_flag =0;
+ 159   5                break;
+ 160   5              //
+ 161   5              case 0x7F:
+ 162   5                #if SendModel
+                          send_D_data(0xFF7F);
+                          #else
+ 165   5                #endif
+ 166   5                speed_flag =0;
+ 167   5                break;
+ 168   5              //使能手柄
+ 169   5              case 0x1F:
+ 170   5                #if SendModel
+                          send_D_data(0xFF1F);
+                        #else
+ 173   5                #endif
+ 174   5                break;
+ 175   5              //关闭手柄
+ 176   5              case 0x2F:
+ 177   5                #if SendModel
+                          send_D_data(0xFF2F);
+                        #else
+C51 COMPILER V9.53.0.0   MAIN                                                              10/13/2016 15:00:47 PAGE 4   
+
+ 180   5                #endif
+ 181   5                break;
+ 182   5              //重置
+ 183   5              case 0x87:
+ 184   5                connnet_flag=0;
+ 185   5                break;
+ 186   5              default:
+ 187   5                speed_flag =1;
+ 188   5                break;
+ 189   5            }
+ 190   4            }
+ 191   3          else{};//do nothing;抖动处理
+ 192   3          }
+ 193   2        //}//else
+ 194   2        };//while(1)
+ 195   1      }
+ 196          void send_D_data(WORD D_data)
+ 197          {
+ 198   1        os_uart_push(0x5A);
+ 199   1        os_uart_push(D_data>>8);
+ 200   1        os_uart_push(D_data);
+ 201   1        os_uart_flush();
+ 202   1      }
+ 203          void send_data(BYTE param)
+ 204          {
+ 205   1        switch(param)
+ 206   1        {
+ 207   2          //停止
+ 208   2          case 0x00:
+ 209   2            send_8byte_data(0x02,0x00,0x00,0x00);
+ 210   2            break;
+ 211   2          //前进
+ 212   2          case 0x01:
+ 213   2            send_8byte_data(0x02,0x01,0x00,0x00);
+ 214   2            break;
+ 215   2          //后退
+ 216   2          case 0x02:
+ 217   2            send_8byte_data(0x02,0x02,0x00,0x00); 
+ 218   2            break;
+ 219   2          //左转
+ 220   2          case 0x03:
+ 221   2            send_8byte_data(0x02,0x03,0x00,0x00); 
+ 222   2            break;
+ 223   2          //右转
+ 224   2          case 0x04:
+ 225   2            send_8byte_data(0x02,0x04,0x00,0x00); 
+ 226   2            break;
+ 227   2          //增加速度
+ 228   2          case 0x05:
+ 229   2            send_8byte_data(0x01,0xCD,0x00,0x00); 
+ 230   2            break;
+ 231   2          //减少速度
+ 232   2          case 0x06:
+ 233   2            send_8byte_data(0x01,0xCE,0x00,0x00); 
+ 234   2            break;
+ 235   2          //打开外部抱闸
+ 236   2          case 0x07:
+ 237   2            send_8byte_data(0x02,0x05,0x00,0x00); 
+ 238   2            break;
+ 239   2          case 0x08:
+ 240   2            break;
+ 241   2          case 0x09:
+C51 COMPILER V9.53.0.0   MAIN                                                              10/13/2016 15:00:47 PAGE 5   
+
+ 242   2            break;
+ 243   2          case 0x0A:
+ 244   2            break;
+ 245   2          case 0x0B:
+ 246   2            break;
+ 247   2          case 0x0C:
+ 248   2            break;
+ 249   2          case 0x0D:
+ 250   2            break;
+ 251   2          case 0x0E:
+ 252   2            break;
+ 253   2          case 0x0F:
+ 254   2            break;
+ 255   2        }
+ 256   1      }
+ 257          void send_8byte_data(BYTE param1,BYTE param2,BYTE param3,BYTE param4)
+ 258          {
+ 259   1        os_uart_push(0x55);
+ 260   1        os_uart_push(0xAA);
+ 261   1        os_uart_push(param1);
+ 262   1        os_uart_push(param2);
+ 263   1        os_uart_push(param3);
+ 264   1        os_uart_push(param4);
+ 265   1        os_uart_push(0xAA);
+ 266   1        os_uart_push(0x55);
+ 267   1        os_uart_flush();
+ 268   1      }
+ 269          
+ 270          //独立按键
+ 271          //void scan_keyboard()
+ 272          //{
+ 273          //  hander_keys = 0xFF;
+ 274          //  if(hander_keys != 0xFF)
+ 275          //  {
+ 276          //    Delay10ms();
+ 277          //    if(hander_keys != 0xFF)
+ 278          //    {
+ 279          //      if (DEBUG){
+ 280          //      os_uart_push(hander_keys);
+ 281          //      os_uart_flush();
+ 282          //      }
+ 283          //      //低4位
+ 284          //      hander_keys = 0x0F;
+ 285          //      switch(hander_keys)
+ 286          //      {
+ 287          //        case 0x0E:
+ 288          //          states_keys =  states_keys & (0xEFFF);
+ 289          //          if (DEBUG){
+ 290          //          os_uart_push(0x01);
+ 291          //          os_uart_flush();
+ 292          //          }
+ 293          //          break;
+ 294          //        case 0x0D:
+ 295          //          states_keys =  states_keys & (0xBFFF);
+ 296          //          if (DEBUG){
+ 297          //          os_uart_push(0x02);
+ 298          //          os_uart_flush();
+ 299          //          }
+ 300          //          break;
+ 301          //        case 0x0B:
+ 302          //          states_keys =  states_keys & (0x7FFF);
+ 303          //        if (DEBUG){
+C51 COMPILER V9.53.0.0   MAIN                                                              10/13/2016 15:00:47 PAGE 6   
+
+ 304          //        os_uart_push(0x04);
+ 305          //          os_uart_flush();
+ 306          //        }
+ 307          //          break;
+ 308          //        case 0x07:
+ 309          //          states_keys =  states_keys & (0xDFFF);
+ 310          //        if (DEBUG){
+ 311          //          os_uart_push(0x08);
+ 312          //          os_uart_flush();
+ 313          //        }
+ 314          //          break;  
+ 315          //      }
+ 316          //      //高4位
+ 317          //      hander_keys = 0xF0;
+ 318          //      switch(hander_keys)
+ 319          //      {
+ 320          //        case 0xE0:
+ 321          //          states_keys =  states_keys & (0xFFEF);
+ 322          //        if (DEBUG){
+ 323          //          os_uart_push(0x10);
+ 324          //          os_uart_flush();
+ 325          //        }
+ 326          //          break;
+ 327          //        case 0xD0:
+ 328          //          states_keys =  states_keys & (0xFFBF);
+ 329          //        if (DEBUG){
+ 330          //        os_uart_push(0x20);
+ 331          //          os_uart_flush();
+ 332          //        }
+ 333          //          break;
+ 334          //        case 0xB0:
+ 335          //          states_keys =  states_keys & (0xFF7F);
+ 336          //        if (DEBUG){
+ 337          //          os_uart_push(0x40);
+ 338          //          os_uart_flush();
+ 339          //        }
+ 340          //          break;
+ 341          //        case 0x70:
+ 342          //          states_keys =  states_keys & (0xFFDF);
+ 343          //        if (DEBUG){
+ 344          //          os_uart_push(0x80);
+ 345          //          os_uart_flush();
+ 346          //        }
+ 347          //          break;  
+ 348          //      }
+ 349          //    }
+ 350          //  }
+ 351          //}
+ 352          
+ 353          
+ 354          void Delay10ms()    //@22.1184MHz
+ 355          {
+ 356   1        unsigned char i, j, k;
+ 357   1      
+ 358   1        _nop_();
+ 359   1        _nop_();
+ 360   1        i = 1;
+ 361   1        j = 216;
+ 362   1        k = 35;
+ 363   1        do
+ 364   1        {
+ 365   2          do
+C51 COMPILER V9.53.0.0   MAIN                                                              10/13/2016 15:00:47 PAGE 7   
+
+ 366   2          {
+ 367   3            while (--k);
+ 368   3          } while (--j);
+ 369   2        } while (--i);
+ 370   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    422    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      2       6
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
