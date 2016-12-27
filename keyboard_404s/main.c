@@ -61,8 +61,8 @@ void main(void)
 			if(states_keys != hander_keys)
 			{
 			//按键生效，就发送指令。
-			//os_uart_push(hander_keys);
-			//os_uart_flush();
+			os_uart_push(hander_keys);
+			os_uart_flush();
 			states_keys = hander_keys;
 			switch(states_keys)
 			{
